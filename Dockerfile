@@ -1,6 +1,6 @@
 FROM ubuntu:20.04
 
-MAINTAINER DrSnowbird "DrSnowbird@openkbs.org"
+LABEL maintainer="James Lahner jayjaylahner@gmail.com"
 
 ENV DEBIAN_FRONTEND noninteractive
 
@@ -36,6 +36,7 @@ ARG LIB_DEV_LIST="apt-utils automake pkg-config libpcre3-dev zlib1g-dev liblzma-
 ARG LIB_BASIC_LIST="curl iputils-ping nmap net-tools build-essential software-properties-common apt-transport-https"
 ARG LIB_COMMON_LIST="bzip2 libbz2-dev git wget unzip vim python3-pip python3-setuptools python3-dev python3-venv python3-numpy python3-scipy python3-pandas python3-matplotlib"
 ARG LIB_TOOL_LIST="graphviz libsqlite3-dev sqlite3 git xz-utils"
+ENV PIP_DEFAULT_TIMEOUT=100
 
 RUN apt-get update -y && \
     apt-get install -y ${LIB_DEV_LIST} && \
@@ -103,12 +104,10 @@ RUN update-alternatives --get-selections | awk -v home="$(readlink -f "$JAVA_HOM
 ###################################
 ARG MAVEN_VERSION=${MAVEN_VERSION:-3.8.4}
 ENV MAVEN_VERSION=${MAVEN_VERSION}
-ENV MAVEN_HOME=/usr/apache-maven-${MAVEN_VERSION}
+ENV MAVEN_HOME=/usr/share/maven
 ENV PATH=${PATH}:${MAVEN_HOME}/bin
 # curl -sL http://archive.apache.org/dist/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.tar.gz \
-RUN MAVEN_PACKAGE_URL=$(curl -s -k https://maven.apache.org/download.cgi | grep "apache-maven.*bin.tar.gz" | head -1|cut -d'"' -f2) && \
-    curl -sL ${MAVEN_PACKAGE_URL} | gunzip | tar x -C /usr/ && \
-    ln -s ${MAVEN_HOME} /usr/maven
+RUN apt update && apt install maven -y
     
 ########################################
 #### ---- PIP install packages ---- ####
@@ -116,7 +115,8 @@ RUN MAVEN_PACKAGE_URL=$(curl -s -k https://maven.apache.org/download.cgi | grep 
 COPY requirements.txt ./
 
 # pip3 uninstall pkg-resources==0.0.0
-RUN python3 -m pip install --upgrade pip && \
+RUN apt-get update && apt-get upgrade -y && \
+    python3 -m pip install --upgrade pip && \
     python3 -m pip --no-cache-dir install --ignore-installed -U -r requirements.txt
 
 ## -- added Local PIP installation bin to PATH
@@ -216,6 +216,13 @@ VOLUME ${WORKSPACE}
 #### ---- NPM: websocket           ---- ####
 ############################################
 RUN npm install websocket ws
+
+############################################
+#### ---- CLEAN: cleanup           ---- ####
+############################################
+RUN apt-get clean -y && apt-get autoremove -y && \
+    apt-get update && apt-get upgrade -y && \
+    apt-get clean -y && apt-get autoremove -y
 
 #########################
 #### ---- Entry ---- ####
